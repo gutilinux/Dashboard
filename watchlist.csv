@@ -1,0 +1,51 @@
+symbol,theme,stop_pct,note
+NBIS,AI cloud,18,holding
+GOOGL,Mega cap,12,holding
+ONDS,Drones / small spec,25,holding
+SMH,Semiconductors ETF,12,holding (fractional)
+FTXL,Semiconductors ETF,12,holding
+MSTR,Crypto-linked,25,holding
+BMNR,Crypto-linked,25,holding
+SOFI,Fintech,18,holding
+GRAB,SE Asia growth,25,holding
+SOXX,Semiconductors ETF,12,
+NVDA,Semiconductors,18,
+AVGO,Semiconductors,18,
+AMD,Semiconductors,18,
+MU,Semiconductors,18,
+TSM,Semiconductors,18,
+SPY,Broad market,12,benchmark
+QQQ,Broad market,12,
+RSP,Broad market equal weight,12,
+DIA,Broad market (Dow),12,
+IWM,Small caps,12,
+XLP,Defensive sector,12,
+XLV,Defensive sector,12,
+XLU,Defensive sector,12,
+XLF,Financials,12,
+XLRE,Real estate,12,
+XLE,Energy,12,
+TLT,Long Treasuries,12,
+GDX,Gold miners,18,
+GLD,Gold,12,
+CRAK,Refiners / diesel,18,
+DINO,Refiners / diesel,18,
+XOM,Energy,12,
+CVX,Energy,12,
+UNH,Health insurer,18,
+OSCR,Health insurer,25,earnings Nov 5
+NKE,Consumer,18,
+CRWD,Cybersecurity,18,
+PANW,Cybersecurity,18,
+ZS,Cybersecurity,18,
+CIBR,Cybersecurity ETF,12,
+ITA,Defense ETF,12,
+LMT,Defense,12,
+RTX,Defense,12,
+NOC,Defense,12,
+AVAV,Drones / defense,25,
+KTOS,Drones / defense,25,
+RKLB,Space,25,
+PLTR,AI software,18,
+PG,Staples,12,
+KO,Staples,12,
