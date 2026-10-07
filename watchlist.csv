@@ -1,3 +1,21 @@
+# ============================ HOW TO EDIT THIS FILE ============================
+# Lines that start with # are notes. The dashboard ignores them.
+# One stock or ETF per line, with 4 columns separated by commas:
+#   symbol,theme,stop_pct,note
+#
+#   symbol    = the Yahoo Finance ticker, in capital letters. Class shares use a dash: BRK-B (not BRK.B).
+#   theme     = a short label for your own use, e.g. Semiconductors, Defense, Gold miners. No commas.
+#   stop_pct  = how wide your trailing stop would be. Use 12 for funds and big companies,
+#               18 for volatile growth stocks, 25 for crypto-linked or speculative names.
+#               The dashboard uses it to work out "Max shares (2% risk)".
+#   note      = optional. Write "holding" if you own it. Do not use a # or a comma inside a note.
+#
+# TO ADD:    add a new line at the bottom, for example:   NVDA,Semiconductors,18,
+# TO REMOVE: delete the whole line (or put a # at the start to switch it off for now).
+# Keep the list to about 50 names. Keep the header line below exactly as it is.
+# After you click "Commit changes", the dashboard rebuilds itself in about 3 to 6 minutes.
+# If a symbol is wrong, the page shows a yellow "No usable price history" warning.
+# ===============================================================================
 symbol,theme,stop_pct,note
 NBIS,AI cloud,18,holding
 GOOGL,Mega cap,12,holding
