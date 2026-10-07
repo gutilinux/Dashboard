@@ -285,14 +285,17 @@ th{{font-size:12px;color:var(--mut);cursor:pointer;user-select:none}}tr:last-chi
 ul{{margin:6px 0 0 18px;padding:0}}.warn{{background:rgba(245,194,107,.18);border:1px solid var(--warn);color:var(--warn);padding:8px 12px;border-radius:8px}}
 .rng{{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut)}}.bar{{position:relative;height:6px;width:110px;background:var(--line);border-radius:3px}}
 .bar .cur{{position:absolute;top:-4px;width:4px;height:14px;margin-left:-2px;background:var(--ink);border-radius:2px}}.bar .m200{{position:absolute;top:-2px;width:2px;height:10px;margin-left:-1px;background:var(--acc)}}
+.disc{{border:2px solid var(--dn);border-radius:10px;padding:10px 14px;margin:12px 0;background:rgba(179,38,30,.08)}}.disc b:first-child{{color:var(--dn);letter-spacing:.03em}}.disc p{{margin:4px 0 0;font-size:13.5px}}
 .edit{{display:inline-block;margin:4px 0;padding:6px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--acc);text-decoration:none;font-size:13px}}
 .spark{{width:100%;height:48px}}.spark .line{{stroke:var(--acc);stroke-width:2}}.spark .ref{{stroke:var(--mut);stroke-dasharray:3 3;stroke-width:1}}
 footer{{margin:28px 0 8px;color:var(--mut);font-size:12.5px}}
 </style></head><body><main>
 <h1>Market dashboard</h1>
 <div class="muted">Prices as of close {ctx["asof"]} · built {ctx["built"]}</div>
+<div class="disc"><b>PERSONAL STUDY PROJECT · NOT FINANCIAL ADVICE</b>
+<p>This page is a personal learning and study plan. The owner is <b>not a financial advisor</b> and does not give investment advice or recommendations. Nothing here is an offer, a signal, or a suggestion to buy, sell or hold anything. Data comes from free sources, may be delayed or wrong, and the calculations may contain mistakes. Investing involves risk, including loss of all money invested. Do your own research and talk to a licensed professional before making any decision.</p></div>
 {demo}{warn}
-<div class="banner"><div class="big">{labels[r]}</div><p>{html.escape(ctx["why"])}</p><p><b>What to do:</b> {todo}</p></div>
+<div class="banner"><div class="big">{labels[r]}</div><p>{html.escape(ctx["why"])}</p><p><b>Study-plan rule for this regime:</b> {todo}</p></div>
 
 <div class="grid">
 <div class="card"><div class="k">S&amp;P 500 stocks above 200-day</div><div class="v">{ctx["b200"]:.0f}%</div><div class="muted">Bull ≥ {BREADTH_BULL:.0f}% · Bear &lt; {BREADTH_BEAR:.0f}%</div>{ctx["spark"]}</div>
@@ -318,7 +321,7 @@ footer{{margin:28px 0 8px;color:var(--mut);font-size:12.5px}}
 {tbl(ctx["all_rows"])}
 
 <footer>Rules recap: max 2% account risk per trade · 15% position cap · semis/AI cap 40% · stop widths 12/18/25% by risk class · pre-trade checker must pass.
-Data: Yahoo Finance via yfinance (adjusted closes), refreshed after the US close. Information for your own tracking only, not financial advice.</footer>
+Data: Yahoo Finance via yfinance (adjusted closes), refreshed after the US close. Personal study project, not financial advice; the owner is not a financial advisor.</footer>
 </main>
 <script>
 document.querySelectorAll('table.sortable').forEach(t=>{{t.querySelectorAll('th').forEach((th,i)=>{{let asc=true;th.addEventListener('click',()=>{{
