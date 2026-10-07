@@ -182,6 +182,17 @@ def setup_label(a):
     return " + ".join(tags)
 
 
+def range_bar(a):
+    lo, hi, last = a["lo"], a["hi"], a["last"]
+    span = (hi - lo) or 1
+    pos = min(max((last - lo) / span, 0), 1) * 100
+    m200 = (a["sma200"] - lo) / span * 100
+    tick = f'<i class="m200" style="left:{m200:.1f}%"></i>' if 0 <= m200 <= 100 else ""
+    return (f'<td data-v="{pos:.1f}"><div class="rng"><span>{money(lo)}</span>'
+            f'<div class="bar">{tick}<i class="cur" style="left:{pos:.1f}%"></i></div>'
+            f'<span>{money(hi)}</span></div><span class="sub">{pos:.0f}% of the way up</span></td>')
+
+
 def row_html(sym, a, meta, account=ACCOUNT_SIZE):
     stop = meta.get("stop_pct", 18) / 100
     max_sh = int((account * RISK_PCT) / (a["last"] * stop)) if a["last"] > 0 else 0
@@ -195,13 +206,14 @@ def row_html(sym, a, meta, account=ACCOUNT_SIZE):
             f'<td data-v="{a["last"]:.4f}">{money(a["last"])}</td>'
             f'<td data-v="{a["pct200"]:.4f}" class="{cls}">{pct(a["pct200"])}<span class="sub">{state}{cross}</span></td>'
             f'<td data-v="{a["dd"]:.4f}">{pct(a["dd"])}</td>'
+            + range_bar(a) +
             f'<td data-v="{a["ret20"]:.4f}">{pct(a["ret20"])}</td>'
             f'<td>{setup}</td><td>{zone}</td>'
             f'<td data-v="{max_sh}">{max_sh:,} <span class="sub">@ {int(stop*100)}% stop</span></td></tr>')
 
 
 TABLE_HEAD = ('<thead><tr><th>Symbol</th><th>Theme</th><th>Price</th><th>vs 200-day</th>'
-              '<th>From high</th><th>1-month</th><th>Setup</th><th>Dip buy zone</th>'
+              '<th>From high</th><th>52-week range</th><th>1-month</th><th>Setup</th><th>Dip buy zone</th>'
               '<th>Max shares (2% risk)</th></tr></thead>')
 
 
@@ -250,6 +262,9 @@ h1{{font-size:20px;margin:4px 0}}h2{{font-size:16px;margin:28px 0 8px}}
 table{{border-collapse:collapse;width:100%;font-size:13.5px}}th,td{{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:top}}
 th{{font-size:12px;color:var(--mut);cursor:pointer;user-select:none}}tr:last-child td{{border-bottom:0}}.sym{{font-weight:650}}
 ul{{margin:6px 0 0 18px;padding:0}}.warn{{background:rgba(245,194,107,.18);border:1px solid var(--warn);color:var(--warn);padding:8px 12px;border-radius:8px}}
+.rng{{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut)}}.bar{{position:relative;height:6px;width:110px;background:var(--line);border-radius:3px}}
+.bar .cur{{position:absolute;top:-4px;width:4px;height:14px;margin-left:-2px;background:var(--ink);border-radius:2px}}.bar .m200{{position:absolute;top:-2px;width:2px;height:10px;margin-left:-1px;background:var(--acc)}}
+.edit{{display:inline-block;margin:4px 0;padding:6px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--acc);text-decoration:none;font-size:13px}}
 .spark{{width:100%;height:48px}}.spark .line{{stroke:var(--acc);stroke-width:2}}.spark .ref{{stroke:var(--mut);stroke-dasharray:3 3;stroke-width:1}}
 footer{{margin:28px 0 8px;color:var(--mut);font-size:12.5px}}
 </style></head><body><main>
@@ -273,10 +288,12 @@ footer{{margin:28px 0 8px;color:var(--mut);font-size:12.5px}}
 <p class="muted">Trend dip = above a rising 200-day and 8–15% off its 52-week high. Range floor = the 6-month floor held at least 3 times and price is within 5% above it.</p>
 {tbl(ctx["short_rows"])}
 
-<h2>S&amp;P 500 trend dips · top 15 by 6-month strength</h2>
+<h2>Radar · names the system found for you</h2>
+<p class="muted">S&amp;P 500 stocks that are not on your list but fit a setup (trend dip or range floor), strongest 6-month first. To follow one, add it to your watchlist.</p>
 {tbl(ctx["sp_rows"])}
 
-<h2>Whole watchlist</h2><p class="muted">Click a column title to sort.</p>
+<h2>Whole watchlist</h2><p class="muted">Click a column title to sort. Range bar: black mark = price, blue tick = 200-day average.</p>
+<a class="edit" href="{ctx["edit_url"]}" target="_blank" rel="noopener">✎ Edit watchlist on GitHub</a>
 {tbl(ctx["all_rows"])}
 
 <footer>Rules recap: max 2% account risk per trade · 15% position cap · semis/AI cap 40% · stop widths 12/18/25% by risk class · pre-trade checker must pass.
@@ -372,7 +389,7 @@ def main():
 
     short = [s for s in wl_syms if res[s]["trend_dip"] or res[s]["range_ok"]]
     short.sort(key=lambda s: res[s]["dd"])
-    sp_dips = sorted([s for s in members if res[s]["trend_dip"] and s not in meta],
+    sp_dips = sorted([s for s in members if (res[s]["trend_dip"] or res[s]["range_ok"]) and s not in meta],
                      key=lambda s: -res[s]["ret126"])[:15]
     for s in sp_dips:
         meta.setdefault(s, dict(theme=names.get(s, "S&P 500"), stop_pct=18))
@@ -380,7 +397,9 @@ def main():
 
     idx_syms = [s for s in ["SPY", "QQQ", "DIA", "IWM", "SMH", "GLD", "TLT"] if s in res]
     spark_vals = list(hist["b200"].astype(float).tail(60)) if len(hist) > 1 else []
+    repo = os.environ.get("GITHUB_REPOSITORY", "gutilinux/Dashboard")
     ctx = dict(
+        edit_url=f"https://github.com/{repo}/edit/main/watchlist.csv",
         regime=reg, why=why, b200=b200 if members else 0, b50=b50 if members else 0, nh=nh, nl=nl,
         tnx=tnx, tnx_change=tnx_change, asof=asof, demo=args.demo,
         built=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
