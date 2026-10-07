@@ -25,7 +25,8 @@ DATA = os.path.join(HERE, "data")
 
 # ---------------------------------------------------------------- universe
 def load_watchlist():
-    df = pd.read_csv(os.path.join(HERE, "watchlist.csv")).fillna("")
+    df = pd.read_csv(os.path.join(HERE, "watchlist.csv"), comment="#", skip_blank_lines=True).fillna("")
+    df = df[df["symbol"].astype(str).str.strip() != ""]
     df["symbol"] = df["symbol"].str.strip().str.upper()
     df["stop_pct"] = pd.to_numeric(df["stop_pct"], errors="coerce").fillna(18)
     return df
@@ -40,11 +41,11 @@ def load_sp500():
             headers={"User-Agent": "Mozilla/5.0 (dashboard script)"}, timeout=30)
         r.raise_for_status()
         t = pd.read_html(io.StringIO(r.text))[0]
-        syms = t["Symbol"].astype(str).str.strip().str.upper().str.replace(".", "-", regex=False)
-        syms = sorted(set(syms))
+        raw = t["Symbol"].astype(str).str.strip().str.upper().str.replace(".", "-", regex=False)
+        names = dict(zip(raw, t["Security"].astype(str)))   # pair BEFORE sorting
+        syms = sorted(set(raw))
         if len(syms) < 400:
             raise ValueError(f"only {len(syms)} symbols parsed")
-        names = dict(zip(syms, t["Security"].astype(str)))
         return syms, names, None
     except Exception as e:  # noqa
         return [], {}, f"S&P 500 list could not be loaded ({e}); showing watchlist only."
