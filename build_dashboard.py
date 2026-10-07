@@ -193,6 +193,27 @@ def range_bar(a):
             f'<span>{money(hi)}</span></div><span class="sub">{pos:.0f}% of the way up</span></td>')
 
 
+def buy_plan(a):
+    """What to do with this name, in plain words, with price levels."""
+    if a["range_ok"]:
+        lo, hi = a["floor"], a["floor"] * 1.05
+        return (f'<b>Range floor now</b>: {money(lo)} – {money(hi)}',
+                f'stop under {money(lo*0.97)}')
+    if not a["above200"]:
+        gap = a["sma200"] / a["last"] - 1
+        return (f'Wait: not in an uptrend',
+                f'needs a close above {money(a["sma200"])} ({pct(gap)})')
+    if not a["slope_up"]:
+        return ('Wait: 200-day not rising yet', f'200-day is {money(a["sma200"])}')
+    top, bot = a["hi"] * (1 + DIP_HIGH), a["hi"] * (1 + DIP_LOW)
+    if a["trend_dip"]:
+        return (f'<b>In dip zone now</b>: {money(bot)} – {money(top)}', 'uptrend intact')
+    if a["dd"] > DIP_HIGH:
+        need = top / a["last"] - 1
+        return (f'Zone {money(bot)} – {money(top)}', f'wait for a pullback ({pct(need)} from here)')
+    return ('Fell past the zone', f'{pct(a["dd"])} from high; uptrend still above 200-day')
+
+
 def row_html(sym, a, meta, account=ACCOUNT_SIZE):
     stop = meta.get("stop_pct", 18) / 100
     max_sh = int((account * RISK_PCT) / (a["last"] * stop)) if a["last"] > 0 else 0
@@ -200,7 +221,7 @@ def row_html(sym, a, meta, account=ACCOUNT_SIZE):
     state = "Above 200d ▲" if a["above200"] else "Below 200d ▼"
     cross = {"up": " · crossed UP", "down": " · crossed DOWN"}.get(a["cross"], "")
     setup = setup_label(a) or "–"
-    zone = f'{money(a["hi"]*(1+DIP_HIGH))} – {money(a["hi"]*(1+DIP_LOW))}'
+    plan, plan_sub = buy_plan(a)
     return (f'<tr><td class="sym">{html.escape(sym)}</td>'
             f'<td>{html.escape(meta.get("theme",""))}</td>'
             f'<td data-v="{a["last"]:.4f}">{money(a["last"])}</td>'
@@ -208,12 +229,12 @@ def row_html(sym, a, meta, account=ACCOUNT_SIZE):
             f'<td data-v="{a["dd"]:.4f}">{pct(a["dd"])}</td>'
             + range_bar(a) +
             f'<td data-v="{a["ret20"]:.4f}">{pct(a["ret20"])}</td>'
-            f'<td>{setup}</td><td>{zone}</td>'
+            f'<td>{setup}</td><td>{plan}<span class="sub">{plan_sub}</span></td>'
             f'<td data-v="{max_sh}">{max_sh:,} <span class="sub">@ {int(stop*100)}% stop</span></td></tr>')
 
 
 TABLE_HEAD = ('<thead><tr><th>Symbol</th><th>Theme</th><th>Price</th><th>vs 200-day</th>'
-              '<th>From high</th><th>52-week range</th><th>1-month</th><th>Setup</th><th>Dip buy zone</th>'
+              '<th>From high</th><th>52-week range</th><th>1-month</th><th>Setup</th><th>Buy plan</th>'
               '<th>Max shares (2% risk)</th></tr></thead>')
 
 
@@ -285,7 +306,7 @@ footer{{margin:28px 0 8px;color:var(--mut);font-size:12.5px}}
 <h2>What changed since last run</h2><div class="card"><ul>{alerts}</ul></div>
 
 <h2>Buy-zone shortlist · your watchlist</h2>
-<p class="muted">Trend dip = above a rising 200-day and 8–15% off its 52-week high. Range floor = the 6-month floor held at least 3 times and price is within 5% above it.</p>
+<p class="muted">Trend dip = above a rising 200-day and 8–15% off its 52-week high; the buy plan column tells you what each name needs. Range floor = the 6-month floor held at least 3 times and price is within 5% above it.</p>
 {tbl(ctx["short_rows"])}
 
 <h2>Radar · names the system found for you</h2>
