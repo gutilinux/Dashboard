@@ -18,6 +18,11 @@ DIP_LOW, DIP_HIGH = -0.15, -0.08   # trend-dip window (drop from 52-week high)
 BREADTH_BULL, BREADTH_BEAR = 50.0, 40.0
 CASH_RESERVE = {"bull": 15, "caution": 30, "bear": 40}   # bear value = draft
 MIN_BARS = 210
+STRETCH_MAX = 0.25      # more than 25% above the 200-day = "stretched", not a calm dip
+RADAR_MAX_200 = 0.20    # radar only shows names 0-20% above the 200-day
+RADAR_MAX_1M = 0.08     # ...and not up more than 8% in the last month
+RADAR_MIN_PRICE = 10.0
+MAX_ONE_DAY_MOVE = 0.40 # bigger one-day jump = probably a split / bad data
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "docs")
 DATA = os.path.join(HERE, "data")
@@ -121,7 +126,11 @@ def analyze(s):
     near_floor = last <= floor * 1.05 and last > floor
     hi126 = float(s.iloc[-126:].max())
     range_ok = touches >= 3 and near_floor and hi126 / floor - 1 >= 0.10
-    trend_dip = bool(above and slope_up and DIP_LOW <= dd <= DIP_HIGH)
+    pct200_now = last / sma200.iloc[-1] - 1
+    in_window = bool(above and slope_up and DIP_LOW <= dd <= DIP_HIGH)
+    stretched = bool(in_window and pct200_now > STRETCH_MAX)
+    trend_dip = bool(in_window and not stretched)
+    maxjump = float(s.pct_change().abs().iloc[-252:].max())
     return dict(
         last=last, sma200=float(sma200.iloc[-1]), sma50=float(sma50.iloc[-1]),
         pct200=last / sma200.iloc[-1] - 1, dd=dd, hi=hi, lo=lo,
@@ -129,7 +138,7 @@ def analyze(s):
         cross=("up" if above and not above_5ago else "down" if (not above) and above_5ago else ""),
         ret1=last / s.iloc[-2] - 1, ret20=last / s.iloc[-21] - 1,
         ret126=last / s.iloc[-127] - 1,
-        trend_dip=trend_dip, range_ok=bool(range_ok), floor=float(floor),
+        trend_dip=trend_dip, stretched=stretched, maxjump=maxjump, range_ok=bool(range_ok), floor=float(floor),
         touches=int(touches), slope_up=bool(slope_up),
         new_hi=bool(last >= hi * 0.999), new_lo=bool(last <= lo * 1.001),
         asof=str(s.index[-1].date()),
@@ -180,6 +189,8 @@ def setup_label(a):
         tags.append("Trend dip")
     if a["range_ok"]:
         tags.append("Range floor")
+    if a.get("stretched"):
+        tags.append("Stretched")
     return " + ".join(tags)
 
 
@@ -207,6 +218,8 @@ def buy_plan(a):
     if not a["slope_up"]:
         return ('Wait: 200-day not rising yet', f'200-day is {money(a["sma200"])}')
     top, bot = a["hi"] * (1 + DIP_HIGH), a["hi"] * (1 + DIP_LOW)
+    if a.get("stretched"):
+        return ('Wait: stretched', f'{pct(a["pct200"])} above its 200-day; let it cool first')
     if a["trend_dip"]:
         return (f'<b>In dip zone now</b>: {money(bot)} – {money(top)}', 'uptrend intact')
     if a["dd"] > DIP_HIGH:
@@ -310,11 +323,11 @@ footer{{margin:28px 0 8px;color:var(--mut);font-size:12.5px}}
 <h2>What changed since last run</h2><div class="card"><ul>{alerts}</ul></div>
 
 <h2>Buy-zone shortlist · your watchlist</h2>
-<p class="muted">Trend dip = above a rising 200-day and 8–15% off its 52-week high; the buy plan column tells you what each name needs. Range floor = the 6-month floor held at least 3 times and price is within 5% above it.</p>
+<p class="muted">Trend dip = above a rising 200-day (and not more than 25% above it) and 8–15% off its 52-week high; the buy plan column tells you what each name needs. Range floor = the 6-month floor held at least 3 times and price is within 5% above it.</p>
 {tbl(ctx["short_rows"])}
 
 <h2>Radar · names the system found for you</h2>
-<p class="muted">S&amp;P 500 stocks that are not on your list but fit a setup (trend dip or range floor), strongest 6-month first. To follow one, add it to your watchlist.</p>
+<p class="muted">S&amp;P 500 stocks not on your list that fit a setup (trend dip or range floor) AND are not stretched: price $10 or more, 0–20% above the 200-day, up no more than 8% in the last month, positive over 6 months. Closest to a healthy pullback first. Often empty, and that is normal. To follow one, add it to your watchlist.</p>
 {tbl(ctx["sp_rows"])}
 
 <h2>Whole watchlist</h2><p class="muted">Click a column title to sort. Range bar: black mark = price, blue tick = 200-day average.</p>
@@ -414,8 +427,13 @@ def main():
 
     short = [s for s in wl_syms if res[s]["trend_dip"] or res[s]["range_ok"]]
     short.sort(key=lambda s: res[s]["dd"])
-    sp_dips = sorted([s for s in members if (res[s]["trend_dip"] or res[s]["range_ok"]) and s not in meta],
-                     key=lambda s: -res[s]["ret126"])[:15]
+    def radar_ok(x):
+        return (x["last"] >= RADAR_MIN_PRICE and x["maxjump"] < MAX_ONE_DAY_MOVE
+                and x["above200"] and x["slope_up"] and 0 <= x["pct200"] <= RADAR_MAX_200
+                and x["ret20"] <= RADAR_MAX_1M and x["ret126"] > 0
+                and (x["trend_dip"] or x["range_ok"]))
+    sp_dips = sorted([s for s in members if s not in meta and radar_ok(res[s])],
+                     key=lambda s: abs(res[s]["pct200"] - 0.08))[:15]
     for s in sp_dips:
         meta.setdefault(s, dict(theme=names.get(s, "S&P 500"), stop_pct=18))
     all_sorted = sorted(wl_syms, key=lambda s: res[s]["pct200"])
