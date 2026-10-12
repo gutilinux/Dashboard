@@ -1,5 +1,6 @@
 name: Nightly dashboard
 
+
 on:
   schedule:
     - cron: "15 23 * * 1-5"
