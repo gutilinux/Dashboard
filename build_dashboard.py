@@ -15,7 +15,8 @@ import pandas as pd
 ACCOUNT_SIZE = float(os.environ.get("ACCOUNT_SIZE", 15700))  # Roth IRA, approx
 RISK_PCT = 0.02                    # rule 1: max risk per trade
 DIP_LOW, DIP_HIGH = -0.15, -0.08   # trend-dip window (drop from 52-week high)
-BREADTH_BULL, BREADTH_BEAR = 50.0, 40.0
+BREADTH_BULL, BREADTH_BEAR = 55.0, 40.0      # to ENTER bull / bear
+BREADTH_BULL_STAY, BREADTH_BEAR_STAY = 45.0, 45.0  # to STAY in bull / bear (hysteresis: no flip-flopping)
 CASH_RESERVE = {"bull": 15, "caution": 30, "bear": 40}   # bear value = draft
 MIN_BARS = 210
 STRETCH_MAX = 0.25      # more than 25% above the 200-day = "stretched", not a calm dip
@@ -145,16 +146,23 @@ def analyze(s):
     )
 
 
-def regime(spy, breadth200, tnx_change):
-    spy_above = spy["above200"]
-    if spy_above and breadth200 >= BREADTH_BULL:
+def regime(spy, breadth200, tnx_change, prev=None):
+    """Hysteresis: it takes more to ENTER bull (55%) than to STAY in it (45%), so the
+    label does not flip every time breadth wobbles around one number."""
+    above = spy["above200"]
+    if above and (breadth200 >= BREADTH_BULL or (prev == "bull" and breadth200 >= BREADTH_BULL_STAY)):
         r, why = "bull", "S&P 500 is above its 200-day average and most stocks agree."
-    elif (not spy_above) and breadth200 < BREADTH_BEAR:
+    elif (not above) and (breadth200 < BREADTH_BEAR or (prev == "bear" and breadth200 < BREADTH_BEAR_STAY)):
         r, why = "bear", "S&P 500 is below its 200-day average and most stocks are too."
     else:
         r = "caution"
-        why = ("Mixed signals: the index and the broad market of stocks disagree." if spy_above
-               else "S&P 500 is below its 200-day average, but not everything is broken.")
+        if above and breadth200 >= 45:
+            why = (f"The index is above its 200-day average, but only {breadth200:.0f}% of stocks are. "
+                   f"Bull needs {BREADTH_BULL:.0f}% or more.")
+        elif above:
+            why = "The index is above its 200-day average, but the broad market of stocks disagrees."
+        else:
+            why = "S&P 500 is below its 200-day average, but not everything is broken."
     if r == "bull" and tnx_change is not None and tnx_change >= 0.25:
         r, why = "caution", "Trend is up, but the 10-year yield has jumped over the last month."
     return r, why
@@ -312,7 +320,7 @@ footer{{margin:28px 0 8px;color:var(--mut);font-size:12.5px}}
 <div class="banner"><div class="big">{labels[r]}</div><p>{html.escape(ctx["why"])}</p><p><b>Study-plan rule for this regime:</b> {todo}</p></div>
 
 <div class="grid">
-<div class="card"><div class="k">S&amp;P 500 stocks above 200-day</div><div class="v">{ctx["b200"]:.0f}%</div><div class="muted">Bull ≥ {BREADTH_BULL:.0f}% · Bear &lt; {BREADTH_BEAR:.0f}%</div>{ctx["spark"]}</div>
+<div class="card"><div class="k">S&amp;P 500 stocks above 200-day</div><div class="v">{ctx["b200"]:.0f}%</div><div class="muted">Bull ≥ {BREADTH_BULL:.0f}% (stays until &lt; {BREADTH_BULL_STAY:.0f}%) · Bear &lt; {BREADTH_BEAR:.0f}%</div>{ctx["spark"]}</div>
 <div class="card"><div class="k">Above 50-day</div><div class="v">{ctx["b50"]:.0f}%</div><div class="muted">New 52-week highs: {ctx["nh"]} · lows: {ctx["nl"]}</div></div>
 <div class="card"><div class="k">10-year yield</div><div class="v">{tnx}</div><div class="muted">{tnxc}</div></div>
 <div class="card"><div class="k">Cash to keep</div><div class="v">{CASH_RESERVE[r]}%</div><div class="muted">Of the account, in this regime</div></div>
@@ -394,13 +402,13 @@ def main():
     tnx = float(tnx_series.iloc[-1]) if len(tnx_series) else None
     tnx_change = float(tnx_series.iloc[-1] - tnx_series.iloc[-21]) if len(tnx_series) > 21 else None
 
-    reg, why = regime(res["SPY"], b200 if members else 50.0, tnx_change)
-
     # history + state (for the trend line and "what changed")
     hpath, spath = os.path.join(DATA, "history.csv"), os.path.join(DATA, "state.json")
     asof = res["SPY"]["asof"]
     hist = pd.read_csv(hpath) if os.path.exists(hpath) else pd.DataFrame(columns=["date", "regime", "b200", "b50", "spy_vs200"])
-    prev_regime = hist["regime"].iloc[-1] if len(hist) else None
+    before = hist[hist["date"] < asof]
+    prev_regime = before["regime"].iloc[-1] if len(before) else None
+    reg, why = regime(res["SPY"], b200 if members else 50.0, tnx_change, prev_regime)
     if not args.demo and members:
         hist = hist[hist["date"] != asof]
         hist.loc[len(hist)] = [asof, reg, round(b200, 1), round(b50, 1), round(res["SPY"]["pct200"], 4)]
